@@ -17,3 +17,27 @@ jobs:
       - name: Run tests
         run: pytest tests/
 
+
+name: Run Pipeline CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pipeline code
+        uses: actions/checkout@v4
+
+      - name: Install Nextflow
+        uses: nf-core/setup-nextflow@v2
+
+      - name: Run pipeline with test data
+        run: |
+          nextflow run workflow/main.nf -profile test,docker
