@@ -1,0 +1,5 @@
+# Ignore large data files and installers
+*.fastq
+*.sra
+pao1.fa
+Miniconda3-latest-MacOSX-arm64.sh
