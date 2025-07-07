@@ -26,9 +26,17 @@ jobs:
       - name: Install Nextflow
         uses: nf-core/setup-nextflow@v2
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build --platform linux/amd64 -t variant-pipeline:1.0 bioinformatics-portfolio/containers
+
       - name: Run pipeline with test data
         run: |
-          nextflow run bioinformatics-portfolio/pipelines/variant_calling/main.nf -profile test,docker -with-trace -with-timeline -with-dag
+          cd bioinformatics-portfolio/pipelines/variant_calling
+          nextflow run main.nf -profile test,docker -with-trace -with-timeline -with-dag
           nextflow clean -f
 
       - name: Upload pipeline reports
