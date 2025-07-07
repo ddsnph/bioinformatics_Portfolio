@@ -23,4 +23,4 @@ nextflow clean -f
 rm -rf work/ .nextflow/
 ```
 
-This will remove all intermediate files and logs, freeing up disk space.
+This will remove all intermediate files and logs, freeing up disk space.# Test workflow trigger
