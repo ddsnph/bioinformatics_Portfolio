@@ -1,0 +1,43 @@
+name: Pipeline CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pipeline code
+        uses: actions/checkout@v4
+
+      - name: Cache Nextflow
+        uses: actions/cache@v4
+        with:
+          path: ~/.nextflow
+          key: ${{ runner.os }}-nextflow-${{ hashFiles('**/nextflow.config') }}
+          restore-keys: |
+            ${{ runner.os }}-nextflow-
+
+      - name: Install Nextflow
+        uses: nf-core/setup-nextflow@v2
+
+      - name: Run pipeline with test data
+        run: |
+          nextflow run pipelines/variant_calling/main.nf -profile test,docker -with-trace -with-timeline -with-dag
+          nextflow clean -f
+
+      - name: Upload pipeline reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipeline-reports
+          path: |
+            pipelines/variant_calling/trace.txt
+            pipelines/variant_calling/timeline.html
+            pipelines/variant_calling/pipeline_dag.html
+          retention-days: 7 
