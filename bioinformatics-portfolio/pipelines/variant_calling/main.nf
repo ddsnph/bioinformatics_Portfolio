@@ -13,12 +13,14 @@
 
 nextflow.enable.dsl=2
 
-// --- INPUT/OUTPUT PARAMETERS --- //
-params.reads     = "data/*_{1,2}.fastq" // Path pattern for paired-end sequencing reads
-params.reference = "data/pao1.fa"         // Path to the reference genome FASTA file
-params.outdir    = "results"                // Directory where all final results will be saved
+params.reads     = "data/*_{1,2}.fastq"
+params.reference = "data/pao1.fa"
+params.outdir    = "results"
 
-// --- PIPELINE LOGO --- //
+params.s3_reads     = "s3://bioinformatics-demo-july2025/inputs/*_{1,2}.fastq"
+params.s3_reference = "s3://bioinformatics-demo-july2025/inputs/pao1.fa"
+params.s3_outdir    = "s3://bioinformatics-demo-july2025/results"
+
 log.info """
          V A R I A N T - C A L L I N G - P I P E L I N E
          =============================================
@@ -27,12 +29,13 @@ log.info """
          Output:    ${params.outdir}
          """
 
-//======================================================================================
-//                                 WORKFLOW DEFINITION
-//======================================================================================
 workflow {
-    ref_ch = Channel.fromPath(params.reference)
-    read_pairs_ch = Channel.fromFilePairs(params.reads)
+    def reads_path = params.s3_reads ?: params.reads
+    def reference_path = params.s3_reference ?: params.reference
+    def output_dir = params.s3_outdir ?: params.outdir
+    
+    ref_ch = Channel.fromPath(reference_path)
+    read_pairs_ch = Channel.fromFilePairs(reads_path)
 
     INDEX_REF(ref_ch)
     ALIGN(read_pairs_ch, INDEX_REF.out)
@@ -40,10 +43,6 @@ workflow {
     INDEX_BAM(SORT_BAM.out)
     CALL_VARIANTS(SORT_BAM.out, INDEX_BAM.out, ref_ch)
 }
-
-//======================================================================================
-//                                     PROCESSES
-//======================================================================================
 
 process INDEX_REF {
     input:
@@ -101,15 +100,13 @@ process CALL_VARIANTS {
 
     output:
       path "*.vcf.gz"
-      path "*.vcf.gz.tbi", optional: true
+      path "*.vcf.gz.tbi"
 
     script:
     def sample_id = sorted_bam.baseName.toString() - '.sorted'
     """
     samtools faidx ${reference}
     bcftools mpileup -f ${reference} ${sorted_bam} | bcftools call -mv -Oz -o ${sample_id}.vcf.gz
-    
-    # Create tabix index for the VCF file
     tabix -p vcf ${sample_id}.vcf.gz
     """
 }
