@@ -30,9 +30,10 @@ log.info """
          """
 
 workflow {
-    def reads_path = params.s3_reads ?: params.reads
-    def reference_path = params.s3_reference ?: params.reference
-    def output_dir = params.s3_outdir ?: params.outdir
+    // Use S3 paths only if aws profile is explicitly used
+    def reads_path = (params.profile && params.profile.contains('aws')) ? params.s3_reads : params.reads
+    def reference_path = (params.profile && params.profile.contains('aws')) ? params.s3_reference : params.reference
+    def output_dir = (params.profile && params.profile.contains('aws')) ? params.s3_outdir : params.outdir
     
     ref_ch = Channel.fromPath(reference_path)
     read_pairs_ch = Channel.fromFilePairs(reads_path)
