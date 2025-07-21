@@ -38,7 +38,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build --platform linux/amd64 -t variant-pipeline:1.0 bioinformatics-portfolio/containers
+          docker build --platform linux/amd64 -f bioinformatics-portfolio/pipelines/variant_calling/Dockerfile.complete -t variant-pipeline:1.0 bioinformatics-portfolio/pipelines/variant_calling
 
       - name: Run pipeline with test data
         run: |
