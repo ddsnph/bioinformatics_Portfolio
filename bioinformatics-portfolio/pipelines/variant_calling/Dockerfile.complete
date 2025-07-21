@@ -1,0 +1,24 @@
+FROM biocontainers/biocontainers:v1.2.0_cv1
+
+USER root
+
+# Install AWS CLI v2
+RUN apt-get update && apt-get install -y \
+    unzip \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf awscliv2.zip aws
+
+# Install additional bioinformatics tools
+RUN conda install -c bioconda -c conda-forge \
+    bwa=0.7.17 \
+    samtools=1.9 \
+    bcftools=1.9 \
+    tabix \
+    && conda clean -a
+
+USER biodocker 

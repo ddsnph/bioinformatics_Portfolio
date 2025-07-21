@@ -15,6 +15,13 @@ jobs:
       - name: Check out pipeline code
         uses: actions/checkout@v4
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
       - name: Cache Nextflow
         uses: actions/cache@v4
         with:
@@ -36,7 +43,7 @@ jobs:
       - name: Run pipeline with test data
         run: |
           cd bioinformatics-portfolio/pipelines/variant_calling
-          nextflow run main.nf -profile test,docker -with-trace -with-timeline -with-dag
+          nextflow run main.nf -profile test,aws -with-trace -with-timeline -with-dag
           nextflow clean -f
 
       - name: Upload pipeline reports

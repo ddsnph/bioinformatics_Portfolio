@@ -16,6 +16,7 @@ nextflow.enable.dsl=2
 params.reads     = "data/*_{1,2}.fastq"
 params.reference = "data/pao1.fa"
 params.outdir    = "results"
+params.profile   = "standard"
 
 params.s3_reads     = "s3://bioinformatics-demo-july2025/inputs/*_{1,2}.fastq"
 params.s3_reference = "s3://bioinformatics-demo-july2025/inputs/pao1.fa"
@@ -30,7 +31,6 @@ log.info """
          """
 
 workflow {
-    // Use S3 paths only if aws profile is explicitly used
     def reads_path = (params.profile && params.profile.contains('aws')) ? params.s3_reads : params.reads
     def reference_path = (params.profile && params.profile.contains('aws')) ? params.s3_reference : params.reference
     def output_dir = (params.profile && params.profile.contains('aws')) ? params.s3_outdir : params.outdir
@@ -46,10 +46,12 @@ workflow {
 }
 
 process INDEX_REF {
+    queue 'nextflow-queue'
+    
     input:
       path reference
     output:
-      path "bwa_index"
+      path "bwa_index", emit: bwa_index
     script:
     """
     mkdir bwa_index
@@ -58,11 +60,13 @@ process INDEX_REF {
 }
 
 process ALIGN {
+    queue 'nextflow-queue'
+    
     input:
       tuple val(sample_id), path(reads)
       path bwa_index_dir
     output:
-      path "${sample_id}.bam"
+      tuple val(sample_id), path("${sample_id}.bam"), emit: bam
     script:
     """
     bwa mem ${bwa_index_dir}/pao1 ${reads[0]} ${reads[1]} | samtools view -Sb - > ${sample_id}.bam
@@ -70,21 +74,25 @@ process ALIGN {
 }
 
 process SORT_BAM {
+    queue 'nextflow-queue'
+    
     input:
-      path bam_file
+      tuple val(sample_id), path(bam_file)
     output:
-      path "*.sorted.bam"
+      tuple val(sample_id), path("${sample_id}.sorted.bam"), emit: sorted_bam
     script:
     """
-    samtools sort ${bam_file} -o ${bam_file}.sorted.bam
+    samtools sort ${bam_file} -o ${sample_id}.sorted.bam
     """
 }
 
 process INDEX_BAM {
+    queue 'nextflow-queue'
+    
     input:
-      path sorted_bam_file
+      tuple val(sample_id), path(sorted_bam_file)
     output:
-      path "*.bai"
+      tuple val(sample_id), path("${sample_id}.sorted.bam.bai"), emit: bai
     script:
     """
     samtools index ${sorted_bam_file}
@@ -92,19 +100,19 @@ process INDEX_BAM {
 }
 
 process CALL_VARIANTS {
+    queue 'nextflow-queue'
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
-      path sorted_bam
-      path bai
+      tuple val(sample_id), path(sorted_bam)
+      tuple val(sample_id2), path(bai)
       path reference
 
     output:
-      path "*.vcf.gz"
-      path "*.vcf.gz.tbi"
+      tuple val(sample_id), path("${sample_id}.vcf.gz"), emit: vcf
+      tuple val(sample_id), path("${sample_id}.vcf.gz.tbi"), emit: tbi
 
     script:
-    def sample_id = sorted_bam.baseName.toString() - '.sorted'
     """
     samtools faidx ${reference}
     bcftools mpileup -f ${reference} ${sorted_bam} | bcftools call -mv -Oz -o ${sample_id}.vcf.gz
